@@ -1,6 +1,7 @@
 import asphaltTexture from '../images/asphalt.jpg';
 import grassTexture from '../images/grass.jpg';
 import carTexture from '../images/car.png';
+import obstacleTexture from '../images/obstacle.png';
 
 export default class GameService {
   constructor(canvasElement, carCanvas) {
@@ -11,16 +12,15 @@ export default class GameService {
     this.asphaltImg = null;
     this.grassImg = null;
     this.carImg = null;
-    this.carX = 700;
-    this.carXmax = 1200;
-    this.carXmin = 650;
+    this.obstacleImg = null;
     this.speed = 4;
     this.asphaltShift = 0;
     this.distance = 0;
     this.obstacles = [];
     this.lastObstacleDistance = 0;
     this.pause = false;
-    this.lines = [{ x: 680 }, { x: 900 }, { x: 1120 }];
+    this.booster = 10;
+    this.isBoost = false;
     this.initGame();
     this.initListeners();
   }
@@ -31,10 +31,10 @@ export default class GameService {
   }
 
   handleKeyDown = (e) => {
-    if (e.key === 'a' && !this.carRaf) {
+    if (e.key === 'a' && !this.carRaf && !this.pause) {
       this.carXto = this.carXmin;
     }
-    if (e.key === 'd' && !this.carRaf) {
+    if (e.key === 'd' && !this.carRaf && !this.pause) {
       this.carXto = this.carXmax;
     }
     if (!this.carRaf) {
@@ -42,10 +42,14 @@ export default class GameService {
     }
 
     if (e.key === 'w') {
-      this.speed++;
+      this.speed += 2;
     }
     if (e.key === 's') {
-      this.speed -= this.speed > 2 ? 1 : 0;
+      this.speed -= this.speed > 3 ? 2 : 0;
+    }
+    if (e.key === ' ' && !this.isBoost) {
+      this.speed += this.booster;
+      this.isBoost = true;
     }
     if (e.key === 'q') {
       this.pause = !this.pause;
@@ -61,19 +65,25 @@ export default class GameService {
       this.drawCar();
       this.carRaf = null;
     }
+    if (e.key === ' ' && this.isBoost) {
+      this.speed -= this.booster;
+      this.isBoost = false;
+    }
   };
 
   initGame() {
-    console.log(window.screen);
     const clientRect = this.canvas.getBoundingClientRect();
-    console.log(clientRect)
-    this.canvas.width = Math.floor((2500 * clientRect.width) / clientRect.height);
+    this.canvas.width = Math.floor(
+      (2500 * clientRect.width) / clientRect.height
+    );
     this.canvas.height = 2500;
     this.carCanvas.width = this.canvas.width;
     this.carCanvas.height = this.canvas.height;
+    this.carY = this.carCanvas.height - 350;
     this.initAsphalt();
     this.initGrass();
     this.initCar();
+    this.initObstacle();
     this.drawRoad();
   }
 
@@ -81,6 +91,15 @@ export default class GameService {
     const img = new Image();
     img.onload = () => {
       this.asphaltImg = img;
+      this.asphaltX = Math.floor((this.canvas.width - img.width) / 2);
+      this.carX = this.asphaltX + 50;
+      this.carXmax = this.asphaltX + this.asphaltImg.width - 150;
+      this.carXmin = this.asphaltX;
+      this.lines = [
+        { x: this.asphaltX + 60 },
+        { x: this.asphaltX + 280 },
+        { x: this.asphaltX + 500 },
+      ];
     };
     img.src = asphaltTexture;
   };
@@ -102,6 +121,15 @@ export default class GameService {
     img.src = carTexture;
   };
 
+  initObstacle = () => {
+    const img = new Image();
+    img.onload = () => {
+      this.obstacleImg = img;
+      console.log(img.width);
+    };
+    img.src = obstacleTexture;
+  };
+
   drawRoad = () => {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.fillStyle = 'red';
@@ -110,10 +138,14 @@ export default class GameService {
     this.asphaltShift = (this.asphaltShift + this.speed) % 257;
     for (let i = -257 + this.asphaltShift; i < this.canvas.height; i += 257) {
       if (this.grassImg) {
-        this.ctx.drawImage(this.grassImg, 0, i);
+        let x = 0;
+        while (x < this.canvas.width) {
+          this.ctx.drawImage(this.grassImg, x, i);
+          x += this.grassImg.width;
+        }
       }
       if (this.asphaltImg) {
-        this.ctx.drawImage(this.asphaltImg, 638, i);
+        this.ctx.drawImage(this.asphaltImg, this.asphaltX, i);
       }
     }
     this.drawObstacles();
@@ -124,11 +156,15 @@ export default class GameService {
 
   drawObstacles = () => {
     this.ctx.fillStyle = 'red';
-    this.obstacles.forEach((obstacle) => {
-      this.ctx.fillRect(this.lines[obstacle.line].x, obstacle.y, 150, 50);
+    if(!this.obstacleImg) {
+      return;
+    }
+    this.checkCollisions();
+    this.obstacles.forEach((obstacle) => {      
+      this.ctx.drawImage(this.obstacleImg, this.lines[obstacle.line].x, obstacle.y + 20);
       obstacle.y += this.speed;
     });
-    if (this.lastObstacleDistance + 1000 < this.distance) {
+    if (this.lastObstacleDistance + 2500 < this.distance) {
       this.createObstacle();
     }
     this.cleanObstacles();
@@ -139,18 +175,18 @@ export default class GameService {
     if (this.carImg) {
       this.ctxCar.save();
       if (this.carXto > this.carX) {
-        this.ctxCar.translate(this.carX + 75, this.carCanvas.height - 150);
+        this.ctxCar.translate(this.carX + 75, this.carCanvas.height - 170);
         this.ctxCar.rotate((5 * Math.PI) / 180);
 
-        this.ctxCar.translate(-this.carX - 75, -this.carCanvas.height + 150);
+        this.ctxCar.translate(-this.carX - 75, -this.carCanvas.height + 170);
       }
       if (this.carXto < this.carX) {
-        this.ctxCar.translate(this.carX + 75, this.carCanvas.height - 150);
+        this.ctxCar.translate(this.carX + 75, this.carCanvas.height - 170);
         this.ctxCar.rotate((-5 * Math.PI) / 180);
 
-        this.ctxCar.translate(-this.carX - 75, -this.carCanvas.height + 150);
+        this.ctxCar.translate(-this.carX - 75, -this.carCanvas.height + 170);
       }
-      this.ctxCar.drawImage(this.carImg, this.carX, this.carCanvas.height - 350);
+      this.ctxCar.drawImage(this.carImg, this.carX, this.carY);
 
       this.ctxCar.restore();
     }
@@ -166,15 +202,45 @@ export default class GameService {
   };
 
   cleanObstacles = () => {
-    this.obstacles = this.obstacles.filter((obstacle) => obstacle.y < this.ctx.height);
+    this.obstacles = this.obstacles.filter(
+      (obstacle) => obstacle.y < this.canvas.height
+    );
+  };
+
+  checkCollisions = () => {
+    if (!this.carImg || !this.obstacleImg) {
+      return;
+    }
+    const carEndX = this.carX + this.carImg.width;
+    const carEndY = this.carY + this.carImg.height;
+    this.obstacles.forEach((obstacle) => {
+      const startX = this.lines[obstacle.line].x;
+      const endX = startX + this.obstacleImg.width;
+      const startY = obstacle.y;
+      const endY = obstacle.y + this.obstacleImg.height;
+      if (
+        ((this.carX < endX && this.carX > startX) ||
+          (carEndX < endX && carEndX > startX)) &&
+        ((this.carY < endY && carEndY > endY) ||
+          (this.carY < startY && carEndY > startY))
+      ) {
+        this.pause = true;
+      }
+    });
   };
 
   turnCar = () => {
     if (this.carXto !== this.carX) {
-      if (this.carXto > this.carX) {
-        this.carX = this.carX + this.speed / 2 < this.carXto ? this.carX + this.speed / 2 : this.carXto;
-      } else if (this.carXto < this.carX) {
-        this.carX = this.carX - this.speed / 2 > this.carXto ? this.carX - this.speed / 2 : this.carXto;
+      if (this.carXto > this.carX && !this.pause) {
+        this.carX =
+          this.carX + this.speed / 2 < this.carXto
+            ? this.carX + this.speed / 2
+            : this.carXto;
+      } else if (this.carXto < this.carX && !this.pause) {
+        this.carX =
+          this.carX - this.speed / 2 > this.carXto
+            ? this.carX - this.speed / 2
+            : this.carXto;
       }
       this.drawCar();
       this.carRaf = requestAnimationFrame(this.turnCar);
