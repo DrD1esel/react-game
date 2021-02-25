@@ -18,73 +18,24 @@ export default class GameService {
     this.distance = 0;
     this.obstacles = [];
     this.lastObstacleDistance = 0;
-    this.pause = false;
+    this.pause = true;
     this.booster = 10;
     this.isBoost = false;
-    this.isAutoPilot = false;
+    this.isAutoPilot = true;
     this.initGame();
     this.initListeners();
   }
+
+  start = () => {
+    this.pause = false;
+    this.drawRoad();
+    this.drawCar();
+  };
 
   initListeners() {
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
-
-  handleKeyDown = (e) => {
-    
-    if (e.key === 'e') {
-      this.isAutoPilot = !this.isAutoPilot;
-    }
-    if(this.isAutoPilot) {
-      return;
-    }
-    if (e.key === 'a' && !this.carRaf && !this.pause) {
-      this.carXto = this.carXmin;
-    }
-    if (e.key === 'd' && !this.carRaf && !this.pause) {
-      this.carXto = this.carXmax;
-    }
-    if (!this.carRaf) {
-      this.turnCar();
-    }
-
-    if (e.key === 'w') {
-      this.speed += 2;
-    }
-    if (e.key === 's') {
-      this.speed -= this.speed > 3 ? 2 : 0;
-    }
-    if (e.key === 'r') {
-      console.log(this.distance);
-    }
-    if (e.key === ' ' && !this.isBoost) {
-      this.speed += this.booster;
-      this.isBoost = true;
-    }
-    if (e.key === 'q') {
-      this.pause = !this.pause;
-      if (!this.pause) {
-        requestAnimationFrame(this.drawRoad);
-      }
-    }
-  };
-
-  handleKeyUp = (e) => {
-    
-    if(this.isAutoPilot) {
-      return;
-    }
-    if (e.key === 'a' || e.key === 'd') {
-      this.carXto = this.carX;
-      this.drawCar();
-      this.carRaf = null;
-    }
-    if (e.key === ' ' && this.isBoost) {
-      this.speed -= this.booster;
-      this.isBoost = false;
-    }
-  };
 
   initGame() {
     const clientRect = this.canvas.getBoundingClientRect();
@@ -99,7 +50,6 @@ export default class GameService {
     this.initGrass();
     this.initCar();
     this.initObstacle();
-    this.drawRoad();
   }
 
   initAsphalt = () => {
@@ -107,7 +57,7 @@ export default class GameService {
     img.onload = () => {
       this.asphaltImg = img;
       this.asphaltX = Math.floor((this.canvas.width - img.width) / 2);
-      this.carX = this.asphaltX + 50;
+      this.carX = this.asphaltX + 300;
       this.carXmax = this.asphaltX + this.asphaltImg.width - 150;
       this.carXmin = this.asphaltX;
       this.lines = [
@@ -131,7 +81,6 @@ export default class GameService {
     const img = new Image();
     img.onload = () => {
       this.carImg = img;
-      this.drawCar();
     };
     img.src = carTexture;
   };
@@ -140,7 +89,6 @@ export default class GameService {
     const img = new Image();
     img.onload = () => {
       this.obstacleImg = img;
-      console.log(img.width);
     };
     img.src = obstacleTexture;
   };
@@ -164,8 +112,8 @@ export default class GameService {
       }
     }
     this.drawObstacles();
-    if (!this.pause) {
-      requestAnimationFrame(this.drawRoad);
+    if (!this.pause && !this.gameOver) {
+      this.roadRaf = requestAnimationFrame(this.drawRoad);
     }
   };
 
@@ -183,7 +131,7 @@ export default class GameService {
       );
       obstacle.y += this.speed;
     });
-    if (this.lastObstacleDistance + 2500 < this.distance) {
+    if (this.lastObstacleDistance + 1000 < this.distance) {
       this.createObstacle();
     }
     this.cleanObstacles();
@@ -247,12 +195,13 @@ export default class GameService {
           (this.carY < startY && carEndY > startY))
       ) {
         this.pause = true;
+        this.gameOver = true;
       }
     });
   };
 
   turnCar = () => {
-    if (this.carXto !== this.carX) {
+    if (this.carXto !== this.carX && !this.gameOver) {
       if (this.carXto > this.carX && !this.pause) {
         this.carX =
           this.carX + this.speed / 2 < this.carXto
@@ -274,10 +223,19 @@ export default class GameService {
   autoPilot = () => {
     const obstacle = this.getNearestObstacle();
     if (obstacle && obstacle.y > 0 && !this.carRaf) {
-      if (obstacle.line !== 2) {
-        this.carXto = this.lines[obstacle.line + 1].x;
-      } else {
+      if (obstacle.line === 2 && this.carX > this.lines[1].x) {
         this.carXto = this.lines[1].x;
+      } else if (obstacle.line === 0 && this.carX < this.lines[1].x) {
+        this.carXto = this.lines[1].x;
+      } else if ( obstacle.line === 1 &&
+        ((this.carX > this.lines[1].x &&
+          this.carX < this.lines[1].x + this.obstacleImg.width) ||
+        (this.carX + this.carImg.width > this.lines[1].x &&
+          this.carX + this.carImg.width< this.lines[1].x + this.obstacleImg.width))
+      ) {
+        const lines = [0, 2];
+        const line = lines[Math.floor(Math.random() * 2)];
+        this.carXto = this.lines[line].x;
       }
       this.turnCar();
     }
@@ -286,8 +244,61 @@ export default class GameService {
   getNearestObstacle = () => {
     if (this.obstacles.length) {
       return this.obstacles.reduce((nearest, curr) =>
-        nearest.y > curr.y ? nearest : curr
+        nearest.y < curr.y && curr.y < this.carY ? curr : nearest
       );
+    }
+  };
+
+  handleKeyDown = (e) => {
+    if (e.key === 'e') {
+      this.isAutoPilot = !this.isAutoPilot;
+    }
+    if (e.key === 'w') {
+      this.speed += 2;
+    }
+    if (e.key === 's') {
+      this.speed -= this.speed > 3 ? 2 : 0;
+    }
+    if (this.isAutoPilot) {
+      return;
+    }
+    if (e.key === 'a' && !this.carRaf && !this.pause) {
+      this.carXto = this.carXmin;
+    }
+    if (e.key === 'd' && !this.carRaf && !this.pause) {
+      this.carXto = this.carXmax;
+    }
+    if (!this.carRaf) {
+      this.turnCar();
+    }
+
+    if (e.key === 'r') {
+      console.log(this.distance);
+    }
+    if (e.key === ' ' && !this.isBoost) {
+      this.speed += this.booster;
+      this.isBoost = true;
+    }
+    if (e.key === 'q') {
+      this.pause = !this.pause;
+      if (!this.pause && !this.gameOver) {
+        this.roadRaf = requestAnimationFrame(this.drawRoad);
+      }
+    }
+  };
+
+  handleKeyUp = (e) => {
+    if (this.isAutoPilot) {
+      return;
+    }
+    if (e.key === 'a' || e.key === 'd') {
+      this.carXto = this.carX;
+      this.drawCar();
+      this.carRaf = null;
+    }
+    if (e.key === ' ' && this.isBoost) {
+      this.speed -= this.booster;
+      this.isBoost = false;
     }
   };
 }

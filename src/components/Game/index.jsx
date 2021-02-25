@@ -16,6 +16,13 @@ class Game extends React.Component {
     );
   }
 
+  componentDidUpdate(prevProps) {
+    const {start} = this.props;
+    if(prevProps.start !== start) {
+      this.gameService.start()
+    }
+  }
+
   render() {
     return (
       <div ref={this.canvasWrapperRef} className="root">
