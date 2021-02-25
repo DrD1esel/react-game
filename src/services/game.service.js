@@ -21,6 +21,7 @@ export default class GameService {
     this.pause = false;
     this.booster = 10;
     this.isBoost = false;
+    this.isAutoPilot = false;
     this.initGame();
     this.initListeners();
   }
@@ -31,6 +32,13 @@ export default class GameService {
   }
 
   handleKeyDown = (e) => {
+    
+    if (e.key === 'e') {
+      this.isAutoPilot = !this.isAutoPilot;
+    }
+    if(this.isAutoPilot) {
+      return;
+    }
     if (e.key === 'a' && !this.carRaf && !this.pause) {
       this.carXto = this.carXmin;
     }
@@ -47,6 +55,9 @@ export default class GameService {
     if (e.key === 's') {
       this.speed -= this.speed > 3 ? 2 : 0;
     }
+    if (e.key === 'r') {
+      console.log(this.distance);
+    }
     if (e.key === ' ' && !this.isBoost) {
       this.speed += this.booster;
       this.isBoost = true;
@@ -60,6 +71,10 @@ export default class GameService {
   };
 
   handleKeyUp = (e) => {
+    
+    if(this.isAutoPilot) {
+      return;
+    }
     if (e.key === 'a' || e.key === 'd') {
       this.carXto = this.carX;
       this.drawCar();
@@ -156,18 +171,25 @@ export default class GameService {
 
   drawObstacles = () => {
     this.ctx.fillStyle = 'red';
-    if(!this.obstacleImg) {
+    if (!this.obstacleImg) {
       return;
     }
     this.checkCollisions();
-    this.obstacles.forEach((obstacle) => {      
-      this.ctx.drawImage(this.obstacleImg, this.lines[obstacle.line].x, obstacle.y + 20);
+    this.obstacles.forEach((obstacle) => {
+      this.ctx.drawImage(
+        this.obstacleImg,
+        this.lines[obstacle.line].x,
+        obstacle.y + 20
+      );
       obstacle.y += this.speed;
     });
     if (this.lastObstacleDistance + 2500 < this.distance) {
       this.createObstacle();
     }
     this.cleanObstacles();
+    if (this.isAutoPilot) {
+      this.autoPilot();
+    }
   };
 
   drawCar = () => {
@@ -246,6 +268,26 @@ export default class GameService {
       this.carRaf = requestAnimationFrame(this.turnCar);
     } else {
       this.carRaf = null;
+    }
+  };
+
+  autoPilot = () => {
+    const obstacle = this.getNearestObstacle();
+    if (obstacle && obstacle.y > 0 && !this.carRaf) {
+      if (obstacle.line !== 2) {
+        this.carXto = this.lines[obstacle.line + 1].x;
+      } else {
+        this.carXto = this.lines[1].x;
+      }
+      this.turnCar();
+    }
+  };
+
+  getNearestObstacle = () => {
+    if (this.obstacles.length) {
+      return this.obstacles.reduce((nearest, curr) =>
+        nearest.y > curr.y ? nearest : curr
+      );
     }
   };
 }
