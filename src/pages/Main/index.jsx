@@ -16,9 +16,9 @@ export class Main extends Component {
       <Grid className='root'>
         <Game start={isGameStarted} />
         {!isGameStarted && (
-          <Grid className="overlay">
+          <Grid container justify="center" alignItems="center" className="overlay">
             <Grid>
-              <Button onClick={this.handleStartGame}>Start</Button>
+              <Button variant="contained" color="primary" onClick={this.handleStartGame}>Start</Button>
             </Grid>
           </Grid>
         )}
