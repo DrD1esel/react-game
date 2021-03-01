@@ -23,13 +23,14 @@ export default class GameService {
     this.lastObstacleDistance = 0;
     this.pause = true;
     this.isBoost = false;
-    this.hd = false;
+    this.hd = true;
     this.initGame();
     this.initListeners();
   }
 
   start = () => {
     this.pause = false;
+    this.gameOver = false;
     this.drawRoad();
     this.drawCar();
     this.distanceInterval = setInterval(() => this.onDistanceChange(this.distance), 100);
@@ -46,7 +47,7 @@ export default class GameService {
     this.asphaltShift = asphaltShift;
     this.carX = carX || this.asphaltX + 290;
     this.carXto = this.carX;
-    this.gameOver = false;
+    this.gameOver = true;
     if (this.roadRaf) {
       cancelAnimationFrame(this.roadRaf);
     }
@@ -71,6 +72,11 @@ export default class GameService {
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
+
+  offScreen = () => {
+    this.ctxCar.fillStyle = 'white';
+    this.ctxCar.fillRect(0, 0, this.carCanvas.width, this.carCanvas.height);
+  };
 
   initGame() {
     const clientRect = this.canvas.getBoundingClientRect();
@@ -123,8 +129,13 @@ export default class GameService {
   };
 
   saveGame = () => {
-    this.onSave({obstacles: this.obstacles, lastObstacleDistance: this.lastObstacleDistance, carX: this.carX, asphaltShift: this.asphaltShift})
-  }
+    this.onSave({
+      obstacles: this.obstacles,
+      lastObstacleDistance: this.lastObstacleDistance,
+      carX: this.carX,
+      asphaltShift: this.asphaltShift,
+    });
+  };
 
   drawRoad = () => {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -288,7 +299,6 @@ export default class GameService {
   };
 
   handleKeyDown = (e) => {
-    console.log(!this.carRaf && !this.pause && !this.isAutoPilot)
     if (!this.carRaf && !this.pause && !this.isAutoPilot) {
       this.carXto = e.code === 'KeyA' ? this.carXmin : e.code === 'KeyD' ? this.carXmax : this.carX;
       this.turnCar();

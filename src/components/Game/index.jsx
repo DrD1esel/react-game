@@ -1,4 +1,4 @@
-import { Grid, Typography, withStyles } from '@material-ui/core';
+import { Button, Grid, Typography, withStyles } from '@material-ui/core';
 import React from 'react';
 import classNames from 'classnames';
 
@@ -23,6 +23,7 @@ class Game extends React.Component {
       isAutoPilotEnabled: true,
       isBoost: false,
       isPaused: false,
+      isGameOver: false,
     };
 
     this.canvasRef = React.createRef();
@@ -35,6 +36,7 @@ class Game extends React.Component {
       lowerCanvas: this.canvasRef.current,
       upperCanvas: this.canvasRef2.current,
       onDistanceChange: this.handleDistanceChange,
+      onGameOver: this.handleGameOver,
     });
     this.gameService.setSpeed(speed);
     this.gameService.setDistance(distance / DISTANCE_MULTIPLIER);
@@ -47,8 +49,13 @@ class Game extends React.Component {
 
   componentDidUpdate(prevProps) {
     const { start } = this.props;
+    const { speed, distance } = this.state;
     if (prevProps.start !== start) {
-      this.gameService.start();
+      if (start) {
+        this.gameService.startNewGame({ distance: distance / DISTANCE_MULTIPLIER, speed });
+      } else {
+        this.gameService.offScreen();
+      }
     }
   }
 
@@ -68,10 +75,19 @@ class Game extends React.Component {
     this.setState({ distance: formattedNewDistance });
   };
 
-  handleRestart = () => {    
-    const { distance, speed } = this.state;
-    this.gameService.startNewGame({distance: distance / DISTANCE_MULTIPLIER, speed});
-  }
+  handleRestart = () => {
+    this.setState({ distance: 0, speed: INITIAL_SPEED, lastSpeedIncreaseDistance: 0, isPaused: false, isGameOver: false });
+    this.gameService.startNewGame({ distance: 0, speed: INITIAL_SPEED });
+  };
+
+  handleResume = () => {
+    this.gameService.setPause(false);
+    this.setState({ isPaused: false });
+  };
+
+  handleGameOver = () => {
+    this.setState({isGameOver: true, isPaused: true})
+  };
 
   handleKeyDown = (e) => {
     const { isAutoPilotEnabled, isBoost, speed, isPaused } = this.state;
@@ -80,8 +96,8 @@ class Game extends React.Component {
       this.gameService.toggleAutoPilot(!isAutoPilotEnabled);
       this.setState({ isAutoPilotEnabled: !isAutoPilotEnabled });
     }
-    if (e.code === 'KeyR') {      
-      this.setState({ distance: 0, speed: INITIAL_SPEED, lastSpeedIncreaseDistance: 0 }, this.handleRestart);
+    if (e.code === 'KeyR') {
+      this.handleRestart();
     }
     if (e.code === 'Escape') {
       this.gameService.setPause(!isPaused);
@@ -108,7 +124,7 @@ class Game extends React.Component {
   };
 
   render() {
-    const { distance, speed, isAutoPilotEnabled } = this.state;
+    const { distance, speed, isAutoPilotEnabled, isPaused, isGameOver } = this.state;
     const { start, classes } = this.props;
     return (
       <div ref={this.canvasWrapperRef} className={classes.root}>
@@ -131,6 +147,21 @@ class Game extends React.Component {
                 <span className={classes.apOff}>Off</span>
               )}
             </Typography>
+          </Grid>
+        )}
+        {isPaused && (
+          <Grid container direction="column" justify="center" alignItems="center" className={classes.pauseOverlay}>
+            {!isGameOver && (
+              <Button variant="outlined" onClick={this.handleResume}>
+                Resume
+              </Button>
+            )}
+            <Button variant="outlined" onClick={this.handleRestart}>
+              New game
+            </Button>
+            <Button variant="outlined" onClick={this.handleResume}>
+              Main menu
+            </Button>
           </Grid>
         )}
       </div>
