@@ -48,6 +48,7 @@ export default class GameService {
     this.carX = carX || this.asphaltX + 290;
     this.carXto = this.carX;
     this.gameOver = true;
+    this.setBoundaries();
     if (this.roadRaf) {
       cancelAnimationFrame(this.roadRaf);
     }
@@ -71,6 +72,7 @@ export default class GameService {
   initListeners() {
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
+    window.addEventListener('resize', this.setBoundaries);
   }
 
   offScreen = () => {
@@ -79,27 +81,35 @@ export default class GameService {
   };
 
   initGame() {
-    const clientRect = this.canvas.getBoundingClientRect();
-    this.canvas.width = Math.floor((2500 * clientRect.width) / clientRect.height);
-    this.canvas.height = 2500;
-    this.carCanvas.width = this.canvas.width;
-    this.carCanvas.height = this.canvas.height;
-    this.carY = this.carCanvas.height - 350;
+    this.setBoundaries();
     this.initAsphalt();
     this.initGrass();
     this.initCar();
     this.initObstacle();
   }
 
+  setBoundaries = () => {
+    const clientRect = this.canvas.getBoundingClientRect();
+    this.canvas.width = Math.floor((2500 * clientRect.width) / clientRect.height);
+    this.canvas.height = 2500;
+    this.carCanvas.width = this.canvas.width;
+    this.carCanvas.height = this.canvas.height;
+    if(this.asphaltImg) {
+      this.asphaltX = Math.floor((this.canvas.width - this.asphaltImg.width) / 2);
+      this.carX = this.asphaltX + 290;
+      this.carXto = this.carX;
+      this.carXmax = this.asphaltX + this.asphaltImg.width - 150;
+      this.carXmin = this.asphaltX;
+      this.lines = [{ x: this.asphaltX + 60 }, { x: this.asphaltX + 280 }, { x: this.asphaltX + 500 }];
+    }
+    this.carY = this.carCanvas.height - 350;
+  }
+
   initAsphalt = () => {
     const img = new Image();
     img.onload = () => {
       this.asphaltImg = img;
-      this.asphaltX = Math.floor((this.canvas.width - img.width) / 2);
-      this.carX = this.asphaltX + 290;
-      this.carXmax = this.asphaltX + this.asphaltImg.width - 150;
-      this.carXmin = this.asphaltX;
-      this.lines = [{ x: this.asphaltX + 60 }, { x: this.asphaltX + 280 }, { x: this.asphaltX + 500 }];
+      this.setBoundaries();
     };
     img.src = asphaltTexture;
   };
