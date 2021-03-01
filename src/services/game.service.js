@@ -5,24 +5,24 @@ import obstacleTexture from '../images/obstacle.png';
 
 const SPEED_MULTIPLIER = 10;
 export default class GameService {
-  constructor({ lowerCanvas, upperCanvas, onDistanceChange }) {
+  constructor({ lowerCanvas, upperCanvas, onDistanceChange, onGameOver, onSave = () => {} }) {
     this.carCanvas = upperCanvas;
     this.canvas = lowerCanvas;
     this.onDistanceChange = onDistanceChange;
+    this.onGameOver = onGameOver;
+    this.onSave = onSave;
     this.ctx = this.canvas.getContext('2d');
     this.ctxCar = this.carCanvas.getContext('2d');
     this.asphaltImg = null;
     this.grassImg = null;
     this.carImg = null;
     this.obstacleImg = null;
-    this.speed = 44;
     this.asphaltShift = 0;
     this.distance = 0;
     this.obstacles = [];
     this.lastObstacleDistance = 0;
     this.pause = true;
     this.isBoost = false;
-    this.isAutoPilot = true;
     this.hd = false;
     this.initGame();
     this.initListeners();
@@ -33,6 +33,28 @@ export default class GameService {
     this.drawRoad();
     this.drawCar();
     this.distanceInterval = setInterval(() => this.onDistanceChange(this.distance), 100);
+    this.saveInterval = setInterval(this.onSave, 2000);
+  };
+
+  startNewGame = ({ distance, speed, obstacles = [], lastObstacleDistance = 0, asphaltShift = 0, carX }) => {
+    clearInterval(this.distanceInterval);
+    clearInterval(this.saveInterval);
+    this.distance = distance;
+    this.speed = speed / SPEED_MULTIPLIER;
+    this.obstacles = obstacles;
+    this.lastObstacleDistance = lastObstacleDistance;
+    this.asphaltShift = asphaltShift;
+    this.carX = carX || this.asphaltX + 290;
+    this.carXto = this.carX;
+    this.gameOver = false;
+    if (this.roadRaf) {
+      cancelAnimationFrame(this.roadRaf);
+    }
+    if (this.carRaf) {
+      cancelAnimationFrame(this.carRaf);
+      this.carRaf = null;
+    }
+    this.start();
   };
 
   setSpeed = (speed) => (this.speed = speed / SPEED_MULTIPLIER);
@@ -99,6 +121,10 @@ export default class GameService {
     };
     img.src = obstacleTexture;
   };
+
+  saveGame = () => {
+    this.onSave({obstacles: this.obstacles, lastObstacleDistance: this.lastObstacleDistance, carX: this.carX, asphaltShift: this.asphaltShift})
+  }
 
   drawRoad = () => {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -215,6 +241,7 @@ export default class GameService {
       ) {
         this.pause = true;
         this.gameOver = true;
+        this.onGameOver(this.distance);
       }
     });
   };
@@ -261,6 +288,7 @@ export default class GameService {
   };
 
   handleKeyDown = (e) => {
+    console.log(!this.carRaf && !this.pause && !this.isAutoPilot)
     if (!this.carRaf && !this.pause && !this.isAutoPilot) {
       this.carXto = e.code === 'KeyA' ? this.carXmin : e.code === 'KeyD' ? this.carXmax : this.carX;
       this.turnCar();

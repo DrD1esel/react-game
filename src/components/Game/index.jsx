@@ -10,6 +10,7 @@ const SPEED_INCREASE_STEP = 1000;
 const SPEED_STEP = 5;
 const M_IN_KM = 1000;
 const SPEED_BOOSTER = 100;
+const INITIAL_SPEED = 165;
 
 class Game extends React.Component {
   constructor(props) {
@@ -17,7 +18,7 @@ class Game extends React.Component {
 
     this.state = {
       distance: 0,
-      speed: 165,
+      speed: INITIAL_SPEED,
       lastSpeedIncreaseDistance: 0,
       isAutoPilotEnabled: true,
       isBoost: false,
@@ -67,12 +68,20 @@ class Game extends React.Component {
     this.setState({ distance: formattedNewDistance });
   };
 
+  handleRestart = () => {    
+    const { distance, speed } = this.state;
+    this.gameService.startNewGame({distance: distance / DISTANCE_MULTIPLIER, speed});
+  }
+
   handleKeyDown = (e) => {
     const { isAutoPilotEnabled, isBoost, speed, isPaused } = this.state;
-    
+
     if (e.code === 'KeyE') {
       this.gameService.toggleAutoPilot(!isAutoPilotEnabled);
       this.setState({ isAutoPilotEnabled: !isAutoPilotEnabled });
+    }
+    if (e.code === 'KeyR') {      
+      this.setState({ distance: 0, speed: INITIAL_SPEED, lastSpeedIncreaseDistance: 0 }, this.handleRestart);
     }
     if (e.code === 'Escape') {
       this.gameService.setPause(!isPaused);
