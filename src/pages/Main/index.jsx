@@ -34,7 +34,18 @@ export class Main extends Component {
 
   handleChangeSettings = (e) => {
     const { name, value, checked } = e.target;
-    this.setState((state) => ({ settings: { ...state.settings, [name]: name === 'startSpeed' ? parseInt(value) : checked } }));
+    let newValue;
+    if(name === 'startSpeed') {
+      const intValue = parseInt(value);
+      if(!intValue || intValue < 20) {
+        newValue = 20;
+      } else if (intValue > 1000) {
+        newValue = 1000;
+      } else {
+        newValue = intValue;
+      }
+    }
+    this.setState((state) => ({ settings: { ...state.settings, [name]: newValue || checked } }));
   };
 
   handleSoundVolumeChange = (e, newValue) => {

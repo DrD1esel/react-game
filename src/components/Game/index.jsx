@@ -11,7 +11,10 @@ const SPEED_INCREASE_STEP = 1000;
 const SPEED_STEP = 5;
 const M_IN_KM = 1000;
 const SPEED_BOOSTER = 100;
-const INITIAL_SPEED = 165;
+
+const THEME_PATH = './assets/sounds/theme.mp3';
+const ENGINE_PATH = './assets/sounds/engine.mp3';
+const CRASH_PATH = './assets/sounds/crash.mp3';
 
 class Game extends React.Component {
   constructor(props) {
@@ -19,7 +22,7 @@ class Game extends React.Component {
 
     this.state = {
       distance: 0,
-      speed: INITIAL_SPEED,
+      speed: 0,
       lastSpeedIncreaseDistance: 0,
       isAutoPilotEnabled: false,
       isBoost: false,
@@ -27,6 +30,7 @@ class Game extends React.Component {
       isGameOver: false,
     };
     this.musicPlayer = new Audio();
+    this.soundPlayer = new Audio();
     this.musicPlayer.loop = true;
     this.canvasRef = React.createRef();
     this.canvasRef2 = React.createRef();
@@ -44,17 +48,18 @@ class Game extends React.Component {
     this.gameService.setDistance(distance / DISTANCE_MULTIPLIER);
     this.gameService.toggleAutoPilot(isAutoPilotEnabled);
     this.gameService.setPause(isPaused);
-    this.musicPlayer.src = './assets/sounds/theme.mp3';
+    this.musicPlayer.src = THEME_PATH;
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
 
   componentDidUpdate(prevProps) {
     const { start, settings } = this.props;
-    const { startSpeed, autopilot, musicVolume } = settings;
+    const { startSpeed, autopilot, musicVolume, soundVolume } = settings;
     if (prevProps.start !== start) {
       if (start) {
         this.musicPlayer.volume = musicVolume;
+        this.soundPlayer.volume = soundVolume;
         this.setState({ isPaused: false, isAutoPilotEnabled: autopilot, speed: startSpeed });
         this.handleRestart();
       } else {
@@ -71,9 +76,8 @@ class Game extends React.Component {
   handleDistanceChange = (newDistance) => {
     const { lastSpeedIncreaseDistance, speed } = this.state;
     const formattedNewDistance = newDistance * DISTANCE_MULTIPLIER;
-    if (lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
+    if (this.props.increasingDifficulty && lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
       const newSpeed = speed + SPEED_STEP;
-      console.log(newSpeed);
       this.gameService.setSpeed(newSpeed);
       this.setState({ lastSpeedIncreaseDistance: formattedNewDistance, speed: newSpeed });
     }
@@ -82,18 +86,25 @@ class Game extends React.Component {
 
   handleRestart = () => {
     const { settings } = this.props;
-    const { startSpeed, autopilot, hd, isMusicOn } = settings;
+    const { startSpeed, autopilot, hd, isMusicOn, isSoundsOn } = settings;
     this.setState({
       distance: 0,
       speed: startSpeed,
       lastSpeedIncreaseDistance: 0,
       isPaused: false,
       isGameOver: false,
+      isAutoPilotEnabled: autopilot,
     });
     this.musicPlayer.currentTime = 0;
     if (isMusicOn) {
       this.musicPlayer.play();
     }
+    if (isSoundsOn) {
+      this.soundPlayer.src = ENGINE_PATH;
+      this.soundPlayer.loop = true;
+      this.soundPlayer.play();
+    }
+    
     this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
   };
 
@@ -103,7 +114,13 @@ class Game extends React.Component {
   };
 
   handleGameOver = () => {
-    this.musicPlayer.pause();
+    this.musicPlayer.pause();    
+    this.soundPlayer.pause();
+    if (this.props.settings.isSoundsOn) {
+      this.soundPlayer.src = CRASH_PATH;
+      this.soundPlayer.loop = false;
+      this.soundPlayer.play();
+    }
     this.setState({ isGameOver: true, isPaused: true });
   };
 
@@ -145,6 +162,7 @@ class Game extends React.Component {
   handleBactToMain = () => {
     const { onBackToMenu } = this.props;
     this.musicPlayer.pause();
+    this.soundPlayer.pause();
     onBackToMenu();
   };
 
@@ -160,7 +178,7 @@ class Game extends React.Component {
           height="500"
           ref={this.canvasRef2}
         ></canvas>
-        {start && (
+        {start && !isGameOver && (
           <Grid container direction="column" justify="center" alignItems="flex-end" className={classes.overlay}>
             <Typography>{(distance / M_IN_KM).toFixed(1)} km</Typography>
             <Typography>{speed} km/h</Typography>
