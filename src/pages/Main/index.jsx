@@ -4,36 +4,76 @@ import { Grid, withStyles } from '@material-ui/core';
 import styles from './styles';
 import OutlinedButton from '../../components/OutlinedButton';
 import ControlsModal from '../../components/ControlsModal';
+import SettingsModal from '../../components/SettingsModal';
 
 export class Main extends Component {
   state = {
     isGameStarted: false,
-    isControlsOpen: false
-  };  
+    isControlsOpen: false,
+    isSettingssOpen: false,
+    settings: {
+      soundVolume: 1,
+      isSoundsOn: true,
+      musicVolume: 1,
+      isMusicOn: true,
+      hd: true,
+      startSpeed: 100,
+      increasingDifficulty: true,
+      autopilot: false,
+    },
+  };
 
   handleStartGame = () => this.setState({ isGameStarted: true });
   handleEndGame = () => this.setState({ isGameStarted: false });
 
-  handleOpenMenu = () => this.setState({isControlsOpen: true})
-  handleCloseMenu = () => this.setState({isControlsOpen: false})
+  handleOpenControls = () => this.setState({ isControlsOpen: true });
+  handleCloseControls = () => this.setState({ isControlsOpen: false });
+
+  handleOpenSettings = () => this.setState({ isSettingssOpen: true });
+  handleCloseSettings = () => this.setState({ isSettingssOpen: false });
+
+  handleChangeSettings = (e) => {
+    const { name, value, checked } = e.target;
+    this.setState((state) => ({ settings: { ...state.settings, [name]: name === 'startSpeed' ? parseInt(value) : checked } }));
+  };
+
+  handleSoundVolumeChange = (e, newValue) => {
+    this.setState((state) => ({ settings: { ...state.settings, soundVolume: newValue } }))
+  };
+
+  handleMusicVolumeChange = (e, newValue) => {
+    this.setState((state) => ({ settings: { ...state.settings, musicVolume: newValue } }))
+  };
 
   render() {
     const { classes } = this.props;
-    const { isGameStarted, isControlsOpen } = this.state;
+    const { isGameStarted, isControlsOpen, isSettingssOpen, settings } = this.state;
     return (
       <Grid className={classes.root}>
-        <Game start={isGameStarted} onBackToMenu={this.handleEndGame}/>
-        {!isGameStarted && !isControlsOpen  && (
+        <Game start={isGameStarted} onBackToMenu={this.handleEndGame} settings={settings}/>
+        {!isGameStarted && !isControlsOpen && (
           <Grid container direction="column" justify="center" alignItems="center" className={classes.overlay}>
-              <OutlinedButton variant="contained" color="outlined" onClick={this.handleStartGame}>
-                Start
-              </OutlinedButton>
-              <OutlinedButton variant="contained" color="outlined" onClick={this.handleOpenMenu}>
-                Controls
-              </OutlinedButton>
+            <OutlinedButton variant="contained" color="outlined" onClick={this.handleStartGame}>
+              Start
+            </OutlinedButton>
+            <OutlinedButton variant="contained" color="outlined" onClick={this.handleOpenControls}>
+              Controls
+            </OutlinedButton>
+            <OutlinedButton variant="contained" color="outlined" onClick={this.handleOpenSettings}>
+              Settings
+            </OutlinedButton>
           </Grid>
         )}
-        {isControlsOpen && <ControlsModal onClose={this.handleCloseMenu} />}
+        {isControlsOpen && <ControlsModal onClose={this.handleCloseControls} />}
+        {isSettingssOpen && (
+          <SettingsModal
+            onClose={this.handleCloseSettings}
+            onChange={this.handleChangeSettings}
+            onSoundVolumeChange={this.handleSoundVolumeChange}
+            onMusicVolumeChange={this.handleMusicVolumeChange}
+            settings={settings}
+          />
+        )}
       </Grid>
     );
   }

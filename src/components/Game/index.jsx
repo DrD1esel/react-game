@@ -21,12 +21,13 @@ class Game extends React.Component {
       distance: 0,
       speed: INITIAL_SPEED,
       lastSpeedIncreaseDistance: 0,
-      isAutoPilotEnabled: true,
+      isAutoPilotEnabled: false,
       isBoost: false,
       isPaused: false,
       isGameOver: false,
     };
-    this.audio = new Audio();
+    this.musicPlayer = new Audio();
+    this.musicPlayer.loop = true;
     this.canvasRef = React.createRef();
     this.canvasRef2 = React.createRef();
   }
@@ -43,22 +44,19 @@ class Game extends React.Component {
     this.gameService.setDistance(distance / DISTANCE_MULTIPLIER);
     this.gameService.toggleAutoPilot(isAutoPilotEnabled);
     this.gameService.setPause(isPaused);
-    this.audio.addEventListener('canplaythrough', () => {
-      this.audio.volume = 0.2;
-    });
-    this.audio.src = './assets/sounds/theme.mp3';
+    this.musicPlayer.src = './assets/sounds/theme.mp3';
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
 
   componentDidUpdate(prevProps) {
-    const { start } = this.props;
-    const { speed, distance } = this.state;
+    const { start, settings } = this.props;
+    const { startSpeed, autopilot, musicVolume } = settings;
     if (prevProps.start !== start) {
       if (start) {
-        this.audio.play();        
-        this.setState({isPaused: false})
-        this.gameService.startNewGame({ distance: distance / DISTANCE_MULTIPLIER, speed });
+        this.musicPlayer.volume = musicVolume;
+        this.setState({ isPaused: false, isAutoPilotEnabled: autopilot, speed: startSpeed });
+        this.handleRestart();
       } else {
         this.gameService.offScreen();
       }
@@ -75,6 +73,7 @@ class Game extends React.Component {
     const formattedNewDistance = newDistance * DISTANCE_MULTIPLIER;
     if (lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
       const newSpeed = speed + SPEED_STEP;
+      console.log(newSpeed);
       this.gameService.setSpeed(newSpeed);
       this.setState({ lastSpeedIncreaseDistance: formattedNewDistance, speed: newSpeed });
     }
@@ -82,14 +81,20 @@ class Game extends React.Component {
   };
 
   handleRestart = () => {
+    const { settings } = this.props;
+    const { startSpeed, autopilot, hd, isMusicOn } = settings;
     this.setState({
       distance: 0,
-      speed: INITIAL_SPEED,
+      speed: startSpeed,
       lastSpeedIncreaseDistance: 0,
       isPaused: false,
       isGameOver: false,
     });
-    this.gameService.startNewGame({ distance: 0, speed: INITIAL_SPEED });
+    this.musicPlayer.currentTime = 0;
+    if (isMusicOn) {
+      this.musicPlayer.play();
+    }
+    this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
   };
 
   handleResume = () => {
@@ -98,6 +103,7 @@ class Game extends React.Component {
   };
 
   handleGameOver = () => {
+    this.musicPlayer.pause();
     this.setState({ isGameOver: true, isPaused: true });
   };
 
@@ -138,8 +144,9 @@ class Game extends React.Component {
 
   handleBactToMain = () => {
     const { onBackToMenu } = this.props;
+    this.musicPlayer.pause();
     onBackToMenu();
-  }
+  };
 
   render() {
     const { distance, speed, isAutoPilotEnabled, isPaused, isGameOver } = this.state;
@@ -169,17 +176,9 @@ class Game extends React.Component {
         )}
         {isPaused && start && (
           <Grid container direction="column" justify="center" alignItems="center" className={classes.pauseOverlay}>
-            {!isGameOver && (
-              <OutlinedButton onClick={this.handleResume}>
-                Resume
-              </OutlinedButton>
-            )}
-            <OutlinedButton onClick={this.handleRestart}>
-              New game
-            </OutlinedButton>
-            <OutlinedButton onClick={this.handleBactToMain}>
-              Main menu
-            </OutlinedButton>
+            {!isGameOver && <OutlinedButton onClick={this.handleResume}>Resume</OutlinedButton>}
+            <OutlinedButton onClick={this.handleRestart}>New game</OutlinedButton>
+            <OutlinedButton onClick={this.handleBactToMain}>Main menu</OutlinedButton>
           </Grid>
         )}
       </div>

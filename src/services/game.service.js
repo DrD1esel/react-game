@@ -37,7 +37,7 @@ export default class GameService {
     this.saveInterval = setInterval(this.onSave, 2000);
   };
 
-  startNewGame = ({ distance, speed, obstacles = [], lastObstacleDistance = 0, asphaltShift = 0, carX }) => {
+  startNewGame = ({ distance, speed, obstacles = [], lastObstacleDistance = 0, asphaltShift = 0, carX, autopilot = false, hd = true }) => {
     clearInterval(this.distanceInterval);
     clearInterval(this.saveInterval);
     this.distance = distance;
@@ -48,6 +48,8 @@ export default class GameService {
     this.carX = carX || this.asphaltX + 290;
     this.carXto = this.carX;
     this.gameOver = true;
+    this.isAutoPilot = autopilot;
+    this.hd = hd;
     this.setBoundaries();
     if (this.roadRaf) {
       cancelAnimationFrame(this.roadRaf);

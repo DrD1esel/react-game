@@ -10,6 +10,7 @@ const hotkeys = [
   { key: 'Space', description: 'Boost speed' },
   { key: 'Esc', description: 'Pause' },
   { key: 'E', description: 'Autopilot' },
+  { key: 'R', description: 'Restart' },
 ];
 
 const ControlsModal = ({ onClose, classes }) => (
