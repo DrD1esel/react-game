@@ -1,9 +1,10 @@
-import { Button, Grid, Typography, withStyles } from '@material-ui/core';
+import { Grid, Typography, withStyles } from '@material-ui/core';
 import React from 'react';
 import classNames from 'classnames';
 
 import GameService from '../../services/game.service';
 import styles from './styles';
+import OutlinedButton from '../OutlinedButton';
 
 const DISTANCE_MULTIPLIER = 0.02;
 const SPEED_INCREASE_STEP = 1000;
@@ -25,7 +26,7 @@ class Game extends React.Component {
       isPaused: false,
       isGameOver: false,
     };
-
+    this.audio = new Audio();
     this.canvasRef = React.createRef();
     this.canvasRef2 = React.createRef();
   }
@@ -42,7 +43,10 @@ class Game extends React.Component {
     this.gameService.setDistance(distance / DISTANCE_MULTIPLIER);
     this.gameService.toggleAutoPilot(isAutoPilotEnabled);
     this.gameService.setPause(isPaused);
-
+    this.audio.addEventListener('canplaythrough', () => {
+      this.audio.volume = 0.2;
+    });
+    this.audio.src = './assets/sounds/theme.mp3';
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
@@ -52,6 +56,8 @@ class Game extends React.Component {
     const { speed, distance } = this.state;
     if (prevProps.start !== start) {
       if (start) {
+        this.audio.play();        
+        this.setState({isPaused: false})
         this.gameService.startNewGame({ distance: distance / DISTANCE_MULTIPLIER, speed });
       } else {
         this.gameService.offScreen();
@@ -76,7 +82,13 @@ class Game extends React.Component {
   };
 
   handleRestart = () => {
-    this.setState({ distance: 0, speed: INITIAL_SPEED, lastSpeedIncreaseDistance: 0, isPaused: false, isGameOver: false });
+    this.setState({
+      distance: 0,
+      speed: INITIAL_SPEED,
+      lastSpeedIncreaseDistance: 0,
+      isPaused: false,
+      isGameOver: false,
+    });
     this.gameService.startNewGame({ distance: 0, speed: INITIAL_SPEED });
   };
 
@@ -86,11 +98,12 @@ class Game extends React.Component {
   };
 
   handleGameOver = () => {
-    this.setState({isGameOver: true, isPaused: true})
+    this.setState({ isGameOver: true, isPaused: true });
   };
 
   handleKeyDown = (e) => {
     const { isAutoPilotEnabled, isBoost, speed, isPaused } = this.state;
+    const { start } = this.props;
 
     if (e.code === 'KeyE') {
       this.gameService.toggleAutoPilot(!isAutoPilotEnabled);
@@ -99,7 +112,7 @@ class Game extends React.Component {
     if (e.code === 'KeyR') {
       this.handleRestart();
     }
-    if (e.code === 'Escape') {
+    if (e.code === 'Escape' && start) {
       this.gameService.setPause(!isPaused);
       this.setState({ isPaused: !isPaused });
     }
@@ -122,6 +135,11 @@ class Game extends React.Component {
       this.setState({ speed: newSpeed, isBoost: false });
     }
   };
+
+  handleBactToMain = () => {
+    const { onBackToMenu } = this.props;
+    onBackToMenu();
+  }
 
   render() {
     const { distance, speed, isAutoPilotEnabled, isPaused, isGameOver } = this.state;
@@ -149,19 +167,19 @@ class Game extends React.Component {
             </Typography>
           </Grid>
         )}
-        {isPaused && (
+        {isPaused && start && (
           <Grid container direction="column" justify="center" alignItems="center" className={classes.pauseOverlay}>
             {!isGameOver && (
-              <Button variant="outlined" onClick={this.handleResume}>
+              <OutlinedButton onClick={this.handleResume}>
                 Resume
-              </Button>
+              </OutlinedButton>
             )}
-            <Button variant="outlined" onClick={this.handleRestart}>
+            <OutlinedButton onClick={this.handleRestart}>
               New game
-            </Button>
-            <Button variant="outlined" onClick={this.handleResume}>
+            </OutlinedButton>
+            <OutlinedButton onClick={this.handleBactToMain}>
               Main menu
-            </Button>
+            </OutlinedButton>
           </Grid>
         )}
       </div>
