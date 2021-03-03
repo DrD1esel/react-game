@@ -63,12 +63,12 @@ class Game extends React.Component {
         this.musicPlayer.volume = musicVolume;
         this.soundPlayer.volume = soundVolume / 2;
         const savedGame = SaveService.loadGame();
-        if(savedGame) {
+        if (savedGame) {
           this.setState({ isPaused: true });
         } else {
           this.setState({ isPaused: false, isAutoPilotEnabled: autopilot, speed: startSpeed });
         }
-        
+
         this.handleRestart();
       } else {
         this.gameService.offScreen();
@@ -81,15 +81,30 @@ class Game extends React.Component {
     document.removeEventListener('keyup', this.handleKeyUp);
   }
 
-  handleSaveGame = game => {
-    const {lastSpeedIncreaseDistance, distance, speed} = this.state;
-    SaveService.saveGame({...game, lastSpeedIncreaseDistance, distance, speed})
-  }
+  toggleSounds = () => {
+    const { settings } = this.props;
+    const { isPaused } = this.state;
+    if (settings.isSoundsOn) {
+      if (isPaused) {
+        this.soundPlayer.pause();
+      } else {
+        this.soundPlayer.play();
+      }
+    }
+  };
+
+  handleSaveGame = (game) => {
+    const { lastSpeedIncreaseDistance, distance, speed } = this.state;
+    SaveService.saveGame({ ...game, lastSpeedIncreaseDistance, distance, speed });
+  };
 
   handleDistanceChange = (newDistance) => {
     const { lastSpeedIncreaseDistance, speed } = this.state;
     const formattedNewDistance = newDistance * DISTANCE_MULTIPLIER;
-    if (this.props.settings.increasingDifficulty && lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
+    if (
+      this.props.settings.increasingDifficulty &&
+      lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance
+    ) {
       const newSpeed = speed + SPEED_STEP;
       this.gameService.setSpeed(newSpeed);
       this.setState({ lastSpeedIncreaseDistance: formattedNewDistance, speed: newSpeed });
@@ -100,10 +115,10 @@ class Game extends React.Component {
   handleRestart = () => {
     const { settings } = this.props;
     const { startSpeed, autopilot, hd, isMusicOn, isSoundsOn } = settings;
-    
+
     const savedGame = SaveService.loadGame();
     this.setState({
-      distance:  savedGame ? savedGame.distance : 0,
+      distance: savedGame ? savedGame.distance : 0,
       speed: savedGame ? savedGame.speed : startSpeed,
       lastSpeedIncreaseDistance: savedGame ? savedGame.lastSpeedIncreaseDistance : 0,
       isPaused: Boolean(savedGame),
@@ -117,26 +132,30 @@ class Game extends React.Component {
     if (isSoundsOn) {
       this.soundPlayer.src = ENGINE_PATH;
       this.soundPlayer.loop = true;
-      this.soundPlayer.play();
     }
-    if(savedGame) {
-      this.gameService.startNewGame({ speed: startSpeed, autopilot, hd, ...savedGame, distance: savedGame.distance / DISTANCE_MULTIPLIER});
-      this.gameService.setPause(Boolean(savedGame))
+    if (savedGame) {
+      this.gameService.startNewGame({
+        speed: startSpeed,
+        autopilot,
+        hd,
+        ...savedGame,
+        distance: savedGame.distance / DISTANCE_MULTIPLIER,
+      });
+      this.gameService.setPause(Boolean(savedGame));
       SaveService.clearGame();
     } else {
       this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
-    }    
-    
+    }
   };
 
   handleResume = () => {
     this.gameService.setPause(false);
-    this.setState({ isPaused: false });
+    this.setState({ isPaused: false }, this.toggleSounds);
   };
 
   handleGameOver = (distance) => {
-    const {settings} = this.props;
-    this.musicPlayer.pause();    
+    const { settings } = this.props;
+    this.musicPlayer.pause();
     this.soundPlayer.pause();
     if (settings.isSoundsOn) {
       this.soundPlayer.src = CRASH_PATH;
@@ -145,10 +164,10 @@ class Game extends React.Component {
     }
     SaveService.saveFinishedGame({
       id: `${Math.random()}`,
-      distance: (distance * DISTANCE_MULTIPLIER / M_IN_KM).toFixed(1),
+      distance: ((distance * DISTANCE_MULTIPLIER) / M_IN_KM).toFixed(1),
       hardMode: settings.increasingDifficulty ? 'Hard' : 'Easy',
       date: new Date().toISOString().split('.')[0].replace('T', ' '),
-    })
+    });
     this.setState({ isGameOver: true, isPaused: true });
   };
 
@@ -165,7 +184,7 @@ class Game extends React.Component {
     }
     if (e.code === 'Escape' && start) {
       this.gameService.setPause(!isPaused);
-      this.setState({ isPaused: !isPaused });
+      this.setState({ isPaused: !isPaused }, this.toggleSounds);
     }
 
     if (e.key === ' ' && !isBoost && !isAutoPilotEnabled) {
