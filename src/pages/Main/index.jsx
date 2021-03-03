@@ -7,6 +7,7 @@ import ControlsModal from '../../components/ControlsModal';
 import SettingsModal from '../../components/SettingsModal';
 import ResultsModal from '../../components/ResultsModal';
 import SaveService from '../../services/save.service';
+import Footer from '../../components/Footer';
 
 export class Main extends Component {
   state = {
@@ -95,6 +96,7 @@ export class Main extends Component {
             settings={settings}
           />
         )}
+        <Footer />
       </Grid>
     );
   }
