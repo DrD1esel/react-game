@@ -33,11 +33,21 @@ export default class GameService {
     this.gameOver = false;
     this.drawRoad();
     this.drawCar();
+    this.saveGame();
     this.distanceInterval = setInterval(() => this.onDistanceChange(this.distance), 100);
-    this.saveInterval = setInterval(this.onSave, 2000);
+    this.saveInterval = setInterval(this.saveGame, 1000);
   };
 
-  startNewGame = ({ distance, speed, obstacles = [], lastObstacleDistance = 0, asphaltShift = 0, carX, autopilot = false, hd = true }) => {
+  startNewGame = ({
+    distance,
+    speed,
+    obstacles = [],
+    lastObstacleDistance = 0,
+    asphaltShift = 0,
+    carX,
+    autopilot = false,
+    hd = true,
+  }) => {
     clearInterval(this.distanceInterval);
     clearInterval(this.saveInterval);
     this.distance = distance;
@@ -66,8 +76,12 @@ export default class GameService {
   toggleAutoPilot = (isEnabled) => (this.isAutoPilot = isEnabled);
   setPause = (isPause) => {
     this.pause = isPause;
-    if (!isPause && !this.gameOver && this.asphaltImg) {
+    if (!isPause && !this.gameOver && this.asphaltImg) {      
+      this.saveInterval = setInterval(this.saveGame, 1000);
       this.roadRaf = requestAnimationFrame(this.drawRoad);
+    }
+    if(isPause) {      
+      clearInterval(this.saveInterval);
     }
   };
 
@@ -96,7 +110,7 @@ export default class GameService {
     this.canvas.height = 2500;
     this.carCanvas.width = this.canvas.width;
     this.carCanvas.height = this.canvas.height;
-    if(this.asphaltImg) {
+    if (this.asphaltImg) {
       this.asphaltX = Math.floor((this.canvas.width - this.asphaltImg.width) / 2);
       this.carX = this.asphaltX + 290;
       this.carXto = this.carX;
@@ -105,7 +119,7 @@ export default class GameService {
       this.lines = [{ x: this.asphaltX + 60 }, { x: this.asphaltX + 280 }, { x: this.asphaltX + 500 }];
     }
     this.carY = this.carCanvas.height - 350;
-  }
+  };
 
   initAsphalt = () => {
     const img = new Image();
@@ -146,6 +160,7 @@ export default class GameService {
       lastObstacleDistance: this.lastObstacleDistance,
       carX: this.carX,
       asphaltShift: this.asphaltShift,
+      autopilot: this.isAutoPilot,
     });
   };
 
@@ -264,6 +279,7 @@ export default class GameService {
       ) {
         this.pause = true;
         this.gameOver = true;
+        clearInterval(this.saveInterval);
         this.onGameOver(this.distance);
       }
     });

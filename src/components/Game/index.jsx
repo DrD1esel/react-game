@@ -3,6 +3,7 @@ import React from 'react';
 import classNames from 'classnames';
 
 import GameService from '../../services/game.service';
+import SaveService from '../../services/save.service';
 import styles from './styles';
 import OutlinedButton from '../OutlinedButton';
 
@@ -43,6 +44,7 @@ class Game extends React.Component {
       upperCanvas: this.canvasRef2.current,
       onDistanceChange: this.handleDistanceChange,
       onGameOver: this.handleGameOver,
+      onSave: this.handleSaveGame,
     });
     this.gameService.setSpeed(speed);
     this.gameService.setDistance(distance / DISTANCE_MULTIPLIER);
@@ -59,8 +61,14 @@ class Game extends React.Component {
     if (prevProps.start !== start) {
       if (start) {
         this.musicPlayer.volume = musicVolume;
-        this.soundPlayer.volume = soundVolume;
-        this.setState({ isPaused: false, isAutoPilotEnabled: autopilot, speed: startSpeed });
+        this.soundPlayer.volume = soundVolume / 2;
+        const savedGame = SaveService.loadGame();
+        if(savedGame) {
+          this.setState({ isPaused: true });
+        } else {
+          this.setState({ isPaused: false, isAutoPilotEnabled: autopilot, speed: startSpeed });
+        }
+        
         this.handleRestart();
       } else {
         this.gameService.offScreen();
@@ -73,10 +81,15 @@ class Game extends React.Component {
     document.removeEventListener('keyup', this.handleKeyUp);
   }
 
+  handleSaveGame = game => {
+    const {lastSpeedIncreaseDistance, distance, speed} = this.state;
+    SaveService.saveGame({...game, lastSpeedIncreaseDistance, distance, speed})
+  }
+
   handleDistanceChange = (newDistance) => {
     const { lastSpeedIncreaseDistance, speed } = this.state;
     const formattedNewDistance = newDistance * DISTANCE_MULTIPLIER;
-    if (this.props.increasingDifficulty && lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
+    if (this.props.settings.increasingDifficulty && lastSpeedIncreaseDistance + SPEED_INCREASE_STEP < formattedNewDistance) {
       const newSpeed = speed + SPEED_STEP;
       this.gameService.setSpeed(newSpeed);
       this.setState({ lastSpeedIncreaseDistance: formattedNewDistance, speed: newSpeed });
@@ -87,11 +100,13 @@ class Game extends React.Component {
   handleRestart = () => {
     const { settings } = this.props;
     const { startSpeed, autopilot, hd, isMusicOn, isSoundsOn } = settings;
+    
+    const savedGame = SaveService.loadGame();
     this.setState({
-      distance: 0,
-      speed: startSpeed,
-      lastSpeedIncreaseDistance: 0,
-      isPaused: false,
+      distance:  savedGame ? savedGame.distance : 0,
+      speed: savedGame ? savedGame.speed : startSpeed,
+      lastSpeedIncreaseDistance: savedGame ? savedGame.lastSpeedIncreaseDistance : 0,
+      isPaused: Boolean(savedGame),
       isGameOver: false,
       isAutoPilotEnabled: autopilot,
     });
@@ -104,8 +119,14 @@ class Game extends React.Component {
       this.soundPlayer.loop = true;
       this.soundPlayer.play();
     }
+    if(savedGame) {
+      this.gameService.startNewGame({ speed: startSpeed, autopilot, hd, ...savedGame, distance: savedGame.distance / DISTANCE_MULTIPLIER});
+      this.gameService.setPause(Boolean(savedGame))
+      SaveService.clearGame();
+    } else {
+      this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
+    }    
     
-    this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
   };
 
   handleResume = () => {
@@ -113,14 +134,21 @@ class Game extends React.Component {
     this.setState({ isPaused: false });
   };
 
-  handleGameOver = () => {
+  handleGameOver = (distance) => {
+    const {settings} = this.props;
     this.musicPlayer.pause();    
     this.soundPlayer.pause();
-    if (this.props.settings.isSoundsOn) {
+    if (settings.isSoundsOn) {
       this.soundPlayer.src = CRASH_PATH;
       this.soundPlayer.loop = false;
       this.soundPlayer.play();
     }
+    SaveService.saveFinishedGame({
+      id: `${Math.random()}`,
+      distance: (distance * DISTANCE_MULTIPLIER / M_IN_KM).toFixed(1),
+      hardMode: settings.increasingDifficulty ? 'Hard' : 'Easy',
+      date: new Date().toISOString().split('.')[0].replace('T', ' '),
+    })
     this.setState({ isGameOver: true, isPaused: true });
   };
 

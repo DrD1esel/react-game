@@ -5,12 +5,15 @@ import styles from './styles';
 import OutlinedButton from '../../components/OutlinedButton';
 import ControlsModal from '../../components/ControlsModal';
 import SettingsModal from '../../components/SettingsModal';
+import ResultsModal from '../../components/ResultsModal';
+import SaveService from '../../services/save.service';
 
 export class Main extends Component {
   state = {
     isGameStarted: false,
     isControlsOpen: false,
     isSettingssOpen: false,
+    isResultsOpen: false,
     settings: {
       soundVolume: 1,
       isSoundsOn: true,
@@ -23,6 +26,17 @@ export class Main extends Component {
     },
   };
 
+  componentDidMount() {
+    const settings = SaveService.loadSettings();
+    if(settings) {
+      this.setState({settings})
+    }
+  }
+
+  saveSettings = () => {
+    SaveService.saveSettings(this.state.settings);
+  }
+
   handleStartGame = () => this.setState({ isGameStarted: true });
   handleEndGame = () => this.setState({ isGameStarted: false });
 
@@ -32,33 +46,25 @@ export class Main extends Component {
   handleOpenSettings = () => this.setState({ isSettingssOpen: true });
   handleCloseSettings = () => this.setState({ isSettingssOpen: false });
 
+  handleOpenResults = () => this.setState({ isResultsOpen: true });
+  handleCloseResults = () => this.setState({ isResultsOpen: false });
+
   handleChangeSettings = (e) => {
     const { name, value, checked } = e.target;
-    let newValue;
-    if(name === 'startSpeed') {
-      const intValue = parseInt(value);
-      if(!intValue || intValue < 20) {
-        newValue = 20;
-      } else if (intValue > 1000) {
-        newValue = 1000;
-      } else {
-        newValue = intValue;
-      }
-    }
-    this.setState((state) => ({ settings: { ...state.settings, [name]: newValue || checked } }));
+    this.setState((state) => ({ settings: { ...state.settings, [name]: value ? parseInt(value) : checked } }), this.saveSettings);
   };
 
   handleSoundVolumeChange = (e, newValue) => {
-    this.setState((state) => ({ settings: { ...state.settings, soundVolume: newValue } }))
+    this.setState((state) => ({ settings: { ...state.settings, soundVolume: newValue } }), this.saveSettings)
   };
 
   handleMusicVolumeChange = (e, newValue) => {
-    this.setState((state) => ({ settings: { ...state.settings, musicVolume: newValue } }))
+    this.setState((state) => ({ settings: { ...state.settings, musicVolume: newValue } }), this.saveSettings)
   };
 
   render() {
     const { classes } = this.props;
-    const { isGameStarted, isControlsOpen, isSettingssOpen, settings } = this.state;
+    const { isGameStarted, isControlsOpen, isSettingssOpen, settings, isResultsOpen } = this.state;
     return (
       <Grid className={classes.root}>
         <Game start={isGameStarted} onBackToMenu={this.handleEndGame} settings={settings}/>
@@ -73,9 +79,13 @@ export class Main extends Component {
             <OutlinedButton variant="contained" color="outlined" onClick={this.handleOpenSettings}>
               Settings
             </OutlinedButton>
+            <OutlinedButton variant="contained" color="outlined" onClick={this.handleOpenResults}>
+              Results
+            </OutlinedButton>
           </Grid>
         )}
         {isControlsOpen && <ControlsModal onClose={this.handleCloseControls} />}
+        {isResultsOpen && <ResultsModal onClose={this.handleCloseResults} />}
         {isSettingssOpen && (
           <SettingsModal
             onClose={this.handleCloseSettings}
