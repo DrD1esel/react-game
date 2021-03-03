@@ -132,6 +132,7 @@ class Game extends React.Component {
     if (isSoundsOn) {
       this.soundPlayer.src = ENGINE_PATH;
       this.soundPlayer.loop = true;
+      this.soundPlayer.play();
     }
     if (savedGame) {
       this.gameService.startNewGame({
@@ -142,6 +143,7 @@ class Game extends React.Component {
         distance: savedGame.distance / DISTANCE_MULTIPLIER,
       });
       this.gameService.setPause(Boolean(savedGame));
+      this.soundPlayer.pause();
       SaveService.clearGame();
     } else {
       this.gameService.startNewGame({ distance: 0, speed: startSpeed, autopilot, hd });
